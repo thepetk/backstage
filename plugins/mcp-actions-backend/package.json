@@ -43,6 +43,7 @@
     "@modelcontextprotocol/sdk": "^1.12.3",
     "express": "^4.17.1",
     "express-promise-router": "^4.1.0",
+    "just-kebab-case": "^4.2.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

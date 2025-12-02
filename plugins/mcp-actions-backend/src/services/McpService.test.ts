@@ -24,6 +24,13 @@ import {
   ListToolsResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
+const mockAuditor = {
+  createEvent: jest.fn(async () => ({
+    success: jest.fn(),
+    fail: jest.fn(),
+  })),
+};
+
 describe('McpService', () => {
   it('should list the available actions as tools in the mcp backend', async () => {
     const mockActionsRegistry = actionsRegistryServiceMock();
@@ -40,6 +47,7 @@ describe('McpService', () => {
 
     const mcpService = await McpService.create({
       actions: mockActionsRegistry,
+      auditor: mockAuditor as any,
     });
 
     const server = mcpService.getServer({
@@ -109,6 +117,7 @@ describe('McpService', () => {
 
     const mcpService = await McpService.create({
       actions: mockActionsRegistry,
+      auditor: mockAuditor as any,
     });
 
     const server = mcpService.getServer({
@@ -159,6 +168,7 @@ describe('McpService', () => {
   it('should return an error when the action is not found', async () => {
     const mcpService = await McpService.create({
       actions: actionsRegistryServiceMock(),
+      auditor: mockAuditor as any,
     });
 
     const server = mcpService.getServer({

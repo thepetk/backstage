@@ -17,7 +17,12 @@ import PromiseRouter from 'express-promise-router';
 import { Router } from 'express';
 import { McpService } from '../services/McpService';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { HttpAuthService } from '@backstage/backend-plugin-api';
+import {
+  AuditorService,
+  BackstageCredentials,
+  HttpAuthService,
+} from '@backstage/backend-plugin-api';
+import { auditCreateEvent } from '../services/auditorUtils';
 
 /**
  * Legacy SSE endpoint for older clients, hopefully will not be needed for much longer.
@@ -25,36 +30,104 @@ import { HttpAuthService } from '@backstage/backend-plugin-api';
 export const createSseRouter = ({
   mcpService,
   httpAuth,
+  auditor,
 }: {
   mcpService: McpService;
   httpAuth: HttpAuthService;
+  auditor: AuditorService;
 }): Router => {
   const router = PromiseRouter();
   const transportsToSessionId = new Map<string, SSEServerTransport>();
 
   router.get('/', async (req, res) => {
-    const server = mcpService.getServer({
-      credentials: await httpAuth.credentials(req),
-    });
+    const connectionStart = Date.now();
+    let credentials: BackstageCredentials | undefined;
 
-    const transport = new SSEServerTransport(
-      `${req.originalUrl}/messages`,
-      res,
-    );
+    try {
+      // audit: mcp-auth-attempt
+      const authAttemptEvent = await auditCreateEvent(
+        auditor,
+        'auth-attempt',
+        req,
+        'medium',
+        {
+          transport: 'sse',
+          hasAuthHeader: !!req.headers.authorization,
+        },
+      );
 
-    transportsToSessionId.set(transport.sessionId, transport);
+      credentials = await httpAuth.credentials(req);
 
-    res.on('close', () => {
-      transportsToSessionId.delete(transport.sessionId);
-    });
+      // audit: mcp-auth-success
+      authAttemptEvent.success({
+        meta: {
+          principal: (credentials.principal as any).userEntityRef,
+        },
+      });
 
-    await server.connect(transport);
+      const server = mcpService.getServer({
+        credentials,
+      });
+
+      const transport = new SSEServerTransport(
+        `${req.originalUrl}/messages`,
+        res,
+      );
+
+      transportsToSessionId.set(transport.sessionId, transport);
+
+      // audit: mcp-connection-established
+      const connectionEvent = await auditCreateEvent(
+        auditor,
+        'connection-established',
+        req,
+        'medium',
+        {
+          transport: 'sse',
+          sessionId: transport.sessionId,
+          principal: (credentials.principal as any).userEntityRef,
+        },
+      );
+
+      res.on('close', () => {
+        const duration = Date.now() - connectionStart;
+
+        // audit: mcp-connection-closed
+        auditCreateEvent(auditor, 'connection-closed', req, 'low', {
+          transport: 'sse',
+          sessionId: transport.sessionId,
+          duration,
+          principal: (credentials?.principal as any)?.userEntityRef,
+        });
+
+        transportsToSessionId.delete(transport.sessionId);
+      });
+
+      await server.connect(transport);
+
+      connectionEvent.success();
+    } catch (error) {
+      // audit: mcp-connection-error
+      await auditCreateEvent(auditor, 'connection-error', req, 'high', {
+        transport: 'sse',
+        errorType: error instanceof Error ? error.name : 'UnknownError',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        principal: (credentials?.principal as any)?.userEntityRef,
+      });
+      throw error;
+    }
   });
 
   router.post('/messages', async (req, res) => {
     const sessionId = req.query.sessionId as string;
 
     if (!sessionId) {
+      // audit: mcp-invalid-session
+      await auditCreateEvent(auditor, 'invalid-session', req, 'medium', {
+        error: 'sessionId is required',
+        statusCode: 400,
+      });
+
       res.status(400).contentType('text/plain').write('sessionId is required');
       return;
     }
@@ -63,6 +136,13 @@ export const createSseRouter = ({
     if (transport) {
       await transport.handlePostMessage(req, res, req.body);
     } else {
+      // audit: mcp-invalid-session
+      await auditCreateEvent(auditor, 'invalid-session', req, 'medium', {
+        sessionId,
+        error: 'No transport found for sessionId',
+        statusCode: 400,
+      });
+
       res
         .status(400)
         .contentType('text/plain')

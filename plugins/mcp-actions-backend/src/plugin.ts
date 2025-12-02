@@ -46,6 +46,7 @@ export const mcpPlugin = createBackendPlugin({
         rootRouter: coreServices.rootHttpRouter,
         discovery: coreServices.discovery,
         config: coreServices.rootConfig,
+        auditor: coreServices.auditor,
       },
       async init({
         actions,
@@ -55,20 +56,24 @@ export const mcpPlugin = createBackendPlugin({
         rootRouter,
         discovery,
         config,
+        auditor,
       }) {
         const mcpService = await McpService.create({
           actions,
+          auditor,
         });
 
         const sseRouter = createSseRouter({
           mcpService,
           httpAuth,
+          auditor,
         });
 
         const streamableRouter = createStreamableRouter({
           mcpService,
           httpAuth,
           logger,
+          auditor,
         });
 
         const router = Router();
