@@ -5998,6 +5998,7 @@ __metadata:
     "@types/express": "npm:^4.17.6"
     express: "npm:^4.17.1"
     express-promise-router: "npm:^4.1.0"
+    just-kebab-case: "npm:^4.2.0"
     zod: "npm:^3.22.4"
   languageName: unknown
   linkType: soft
@@ -30234,6 +30235,7 @@ __metadata:
     "@opentelemetry/exporter-prometheus": "npm:^0.54.0"
     "@opentelemetry/sdk-node": "npm:^0.54.0"
     example-app: "link:../app"
+    winston: "npm:^3.2.1"
   languageName: unknown
   linkType: soft
 
@@ -35864,6 +35866,13 @@ __metadata:
   version: 6.2.0
   resolution: "just-extend@npm:6.2.0"
   checksum: 10/1f487b074b9e5773befdd44dc5d1b446f01f24f7d4f1f255d51c0ef7f686e8eb5f95d983b792b9ca5c8b10cd7e60a924d64103725759eddbd7f18bcb22743f92
+  languageName: node
+  linkType: hard
+
+"just-kebab-case@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "just-kebab-case@npm:4.2.0"
+  checksum: 10/ff71e134ec397d70c7bee1eed2683558923359c870b7288f77a09aae12aa78edc314bdf8a87e48f37b69233d25ada5b01a3703a34aea31fb2612b14ff23b7225
   languageName: node
   linkType: hard
 

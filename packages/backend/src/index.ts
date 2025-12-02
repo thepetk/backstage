@@ -19,8 +19,12 @@ import {
   coreServices,
   createBackendFeatureLoader,
 } from '@backstage/backend-plugin-api';
+import { customAuditorServiceFactory } from './customAuditorServiceFactory';
 
 const backend = createBackend();
+
+// NOTE: custom auditor service to demonstrate transport of logs
+backend.add(customAuditorServiceFactory);
 
 // An example of how to group together and load multiple features. You can also
 // access root-scoped services by adding `deps`.
